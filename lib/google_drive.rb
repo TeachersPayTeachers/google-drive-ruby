@@ -1,3 +1,4 @@
+# coding: utf-8
 # Author: Hiroshi Ichikawa <http://gimite.net/>
 # The license of this source is "New BSD Licence"
 
@@ -75,6 +76,37 @@ module GoogleDrive
     # - https://developers.google.com/drive/web/about-auth
     def self.login_with_oauth(client_or_access_token, proxy = nil)
       return Session.new(client_or_access_token, proxy)
+    end
+
+    def self.login_with_client(client_id, client_secret, refresh_token = nil, scope = nil)
+      client = Google::APIClient.new(
+        :application_name => 'google_drive Ruby library',
+        :application_version => '0.4.0'
+      )
+
+      scope ||= [
+        'https://www.googleapis.com/auth/drive',
+        'https://spreadsheets.google.com/feeds/',
+      ]
+
+      # maybe just provide an authorization object that is merged afterwards?
+      auth = client.authorization
+      auth.client_id = client_id
+      auth.client_secret = client_secret
+      auth.scope = scope
+      auth.redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
+
+      if refresh_token
+        auth.refresh_token = refresh_token
+        auth.fetch_access_token!
+      else
+        $stderr.print("\n1. Open this page:\n%s\n\n" % auth.authorization_uri)
+        $stderr.print('2. Enter the authorization code shown in the page: ')
+        auth.code = $stdin.gets.chomp
+        auth.fetch_access_token!
+      end
+
+      return GoogleDrive.login_with_oauth(client)
     end
 
     # Returns GoogleDrive::Session constructed from a config JSON file at +path+.
